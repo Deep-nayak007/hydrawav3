@@ -12,7 +12,7 @@ import {
 
 interface DeviceBridgePanelProps {
   protocol: ProtocolParameters
-  onStatus: (message: string) => void
+  onStatus: (message: string, tone?: 'info' | 'success' | 'error') => void
 }
 
 const TOPIC = 'HydraWav3Pro/config'
@@ -25,6 +25,10 @@ const requestDefaults = {
   macAddress: '74:4D:BD:A0:A3:EC',
 }
 
+type BridgeStatusTone = 'info' | 'success' | 'error'
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps) => {
   const [baseUrl, setBaseUrl] = useState(requestDefaults.baseUrl)
   const [username, setUsername] = useState(requestDefaults.username)
@@ -32,15 +36,20 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
   const [rememberMe, setRememberMe] = useState(requestDefaults.rememberMe)
   const [macAddress, setMacAddress] = useState(requestDefaults.macAddress)
   const [accessToken, setAccessToken] = useState('')
+  const [demoMode, setDemoMode] = useState(true)
   const [busy, setBusy] = useState(false)
   const [lastPayload, setLastPayload] = useState('')
-  const [panelStatus, setPanelStatus] = useState(
-    'Waiting for login. This panel needs a reachable HydraWav API service.',
-  )
+  const [panelStatus, setPanelStatus] = useState<{
+    message: string
+    tone: BridgeStatusTone
+  }>({
+    message: 'Demo mode is active. Controls run locally until you switch to live API mode.',
+    tone: 'info',
+  })
 
-  const reportStatus = (message: string) => {
-    setPanelStatus(message)
-    onStatus(message)
+  const reportStatus = (message: string, tone: BridgeStatusTone = 'info') => {
+    setPanelStatus({ message, tone })
+    onStatus(message, tone)
   }
 
   const friendlyError = (error: unknown): string => {
@@ -60,8 +69,20 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
   }, [protocol, macAddress])
 
   const login = async () => {
+    if (demoMode) {
+      setBusy(true)
+      try {
+        await wait(420)
+        setAccessToken(`demo-token-${Date.now()}`)
+        reportStatus('Demo token created. Device actions are now enabled for offline walkthrough.', 'success')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
     if (!username.trim() || !password.trim()) {
-      reportStatus('Enter HydraWav API username and password before login.')
+      reportStatus('Enter HydraWav API username and password before login.', 'error')
       return
     }
 
@@ -74,17 +95,41 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
         rememberMe,
       })
       setAccessToken(tokens.accessToken)
-      reportStatus('HydraWav auth success. Access token loaded for MQTT publish calls.')
+      reportStatus('HydraWav auth success. Access token loaded for MQTT publish calls.', 'success')
     } catch (error) {
-      reportStatus(`HydraWav auth failed: ${friendlyError(error)}`)
+      reportStatus(`HydraWav auth failed: ${friendlyError(error)}`, 'error')
     } finally {
       setBusy(false)
     }
   }
 
   const publishControl = async (playCmd: HydraPlayCommand) => {
+    if (demoMode) {
+      setBusy(true)
+      try {
+        const payload =
+          playCmd === 1
+            ? buildStartSessionPayload(protocol, macAddress)
+            : buildPlayCommandPayload(macAddress, playCmd)
+
+        await wait(320)
+        setLastPayload(JSON.stringify(payload, null, 2))
+        reportStatus(
+          `Demo ${playCommandLabel(playCmd)} command prepared for ${normalizeMacAddress(
+            macAddress,
+          )}. Switch to Live API mode for real device publish.`,
+          'success',
+        )
+      } catch (error) {
+        reportStatus(`Demo publish failed: ${friendlyError(error)}`, 'error')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
     if (!accessToken) {
-      reportStatus('Login first to retrieve JWT_ACCESS_TOKEN.')
+      reportStatus('Login first to retrieve JWT_ACCESS_TOKEN.', 'error')
       return
     }
 
@@ -107,13 +152,16 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
         `Published ${playCommandLabel(playCmd)} command to ${TOPIC} for ${normalizeMacAddress(
           macAddress,
         )}.`,
+        'success',
       )
     } catch (error) {
-      reportStatus(`MQTT publish failed: ${friendlyError(error)}`)
+      reportStatus(`MQTT publish failed: ${friendlyError(error)}`, 'error')
     } finally {
       setBusy(false)
     }
   }
+
+  const canPublish = demoMode || accessToken.length > 0
 
   return (
     <section className="panel">
@@ -124,6 +172,37 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
           <strong> HydraWav3Pro/config</strong> with stringified payload.
         </p>
       </header>
+
+      <div className="mode-switch" role="group" aria-label="Bridge mode switch">
+        <button
+          type="button"
+          className={`chip-btn ${demoMode ? 'is-active' : ''}`}
+          aria-pressed={demoMode}
+          onClick={() => {
+            if (!demoMode) {
+              setAccessToken('')
+              reportStatus('Demo mode enabled. Network calls are bypassed for reliable UI testing.', 'info')
+            }
+            setDemoMode(true)
+          }}
+        >
+          Demo mode (offline)
+        </button>
+        <button
+          type="button"
+          className={`chip-btn ${!demoMode ? 'is-active' : ''}`}
+          aria-pressed={!demoMode}
+          onClick={() => {
+            if (demoMode) {
+              setAccessToken('')
+              reportStatus('Live API mode enabled. Login now uses real HydraWav backend endpoints.', 'info')
+            }
+            setDemoMode(false)
+          }}
+        >
+          Live API mode
+        </button>
+      </div>
 
       <div className="bridge-grid">
         <label>
@@ -159,13 +238,13 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
 
       <div className="bridge-actions">
         <button type="button" className="secondary-btn" onClick={() => void login()} disabled={busy}>
-          Login for JWT Token
+          {busy ? 'Working...' : demoMode ? 'Initialize Demo Token' : 'Login for JWT Token'}
         </button>
         <button
           type="button"
           className="primary-btn"
           onClick={() => void publishControl(1)}
-          disabled={busy}
+          disabled={busy || !canPublish}
         >
           Start Session
         </button>
@@ -173,7 +252,7 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
           type="button"
           className="secondary-btn"
           onClick={() => void publishControl(2)}
-          disabled={busy}
+          disabled={busy || !canPublish}
         >
           Pause
         </button>
@@ -181,7 +260,7 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
           type="button"
           className="secondary-btn"
           onClick={() => void publishControl(4)}
-          disabled={busy}
+          disabled={busy || !canPublish}
         >
           Resume
         </button>
@@ -189,7 +268,7 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
           type="button"
           className="secondary-btn"
           onClick={() => void publishControl(3)}
-          disabled={busy}
+          disabled={busy || !canPublish}
         >
           Stop
         </button>
@@ -197,10 +276,15 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
 
       <div className="token-line">
         <span>Token status:</span>
-        <strong>{accessToken ? 'Loaded' : 'Not loaded'}</strong>
+        <strong>{accessToken ? (demoMode ? 'Demo token loaded' : 'JWT loaded') : 'Not loaded'}</strong>
+        {accessToken && (
+          <button type="button" className="link-btn" onClick={() => setAccessToken('')}>
+            Clear
+          </button>
+        )}
       </div>
 
-      <p className="panel-status">{panelStatus}</p>
+      <p className={`panel-status tone-${panelStatus.tone}`}>{panelStatus.message}</p>
 
       <div className="payload-preview">
         <h3>Start payload preview</h3>
@@ -217,7 +301,7 @@ export const DeviceBridgePanel = ({ protocol, onStatus }: DeviceBridgePanelProps
       <p className="doc-note">
         PDF note: the table shows Pause=3, but the explicit Pause request example uses
         <code> playCmd: 2</code>. This bridge follows the explicit request examples:
-        Start=1, Pause=2, Stop=3, Resume=4.
+        Start=1, Pause=2, Stop=3, Resume=4. {demoMode ? 'Demo mode is safe for judges when backend is unavailable.' : 'Live mode publishes to your API URL.'}
       </p>
     </section>
   )

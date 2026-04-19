@@ -139,6 +139,12 @@ p {
   padding: 18px;
   display: grid;
   gap: 14px;
+  transition: transform 160ms ease, box-shadow 220ms ease;
+}
+
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 36px rgba(46, 72, 58, 0.19);
 }
 
 .panel-header {
@@ -183,6 +189,10 @@ p {
   font-size: 0.94rem;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
@@ -203,9 +213,27 @@ p {
   transform: translateY(-1px);
 }
 
-.primary-btn:disabled {
+.primary-btn:active,
+.secondary-btn:active {
+  transform: translateY(0);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+  transform: none;
+}
+
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible,
+.chip-btn:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.link-btn:focus-visible {
+  outline: 2px solid #296d5a;
+  outline-offset: 2px;
 }
 
 .parameter-grid {
@@ -302,6 +330,12 @@ select {
   background: rgba(244, 249, 244, 0.85);
   display: grid;
   gap: 6px;
+  transition: transform 150ms ease, border-color 150ms ease;
+}
+
+.guide-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34, 107, 83, 0.35);
 }
 
 .guide-card h3 {
@@ -365,11 +399,66 @@ select {
   flex-wrap: wrap;
 }
 
+.bridge-actions > button {
+  flex: 1 1 138px;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip-btn {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chip-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 105, 82, 0.35);
+}
+
+.chip-btn.is-active {
+  background: rgba(31, 143, 120, 0.12);
+  border-color: rgba(31, 143, 120, 0.62);
+}
+
+.preset-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-actions span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .token-line {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: #1e7a65;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
 }
 
 .panel-status {
@@ -380,6 +469,17 @@ select {
   background: rgba(232, 244, 236, 0.75);
   color: #315848;
   font-size: 0.84rem;
+}
+
+.panel-status.tone-success {
+  border-color: rgba(72, 131, 92, 0.34);
+  background: rgba(223, 243, 228, 0.78);
+}
+
+.panel-status.tone-error {
+  border-color: rgba(170, 88, 71, 0.42);
+  background: rgba(248, 229, 223, 0.78);
+  color: #6b3228;
 }
 
 .payload-preview {
@@ -462,6 +562,8 @@ select {
   gap: 10px;
   align-items: flex-end;
   min-height: 110px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .trend-bar-wrap {
@@ -489,6 +591,11 @@ select {
   font-size: 0.9rem;
 }
 
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 .status-banner {
   position: sticky;
   bottom: 14px;
@@ -500,6 +607,18 @@ select {
   color: #2f5948;
   font-size: 0.9rem;
   box-shadow: 0 10px 20px rgba(53, 84, 67, 0.14);
+}
+
+.status-banner.tone-success {
+  border-color: rgba(63, 120, 86, 0.36);
+  background: rgba(230, 247, 235, 0.96);
+  color: #25503d;
+}
+
+.status-banner.tone-error {
+  border-color: rgba(174, 86, 72, 0.42);
+  background: rgba(252, 235, 230, 0.98);
+  color: #6a3128;
 }
 
 .utility-panel p {
@@ -540,6 +659,72 @@ select {
   .milestone-grid,
   .preview-strip {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 22px 16px 44px;
+  }
+
+  .hero {
+    padding: 20px;
+  }
+
+  .top-stats {
+    gap: 8px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 18px 12px 34px;
+  }
+
+  .hero {
+    padding: 16px;
+  }
+
+  .top-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .top-stats strong {
+    font-size: 1.12rem;
+  }
+
+  .panel {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .bridge-actions > button,
+  .garden-actions button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .status-banner {
+    bottom: 8px;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-copy {
+    font-size: 0.93rem;
+  }
+
+  .panel-header p,
+  .guide-card p {
+    font-size: 0.82rem;
+  }
+
+  .garden-canvas-wrap {
+    min-height: 280px;
   }
 }
 

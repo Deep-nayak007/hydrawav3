@@ -37,6 +37,54 @@ const initialState = (): CaptureState => ({
   readinessAfter: 6.2,
 })
 
+const capturePresets: Record<'balanced' | 'fatigue' | 'asymmetry', CaptureState> = {
+  balanced: {
+    modality: 'hybrid',
+    hrvBefore: 62,
+    hrvAfter: 70,
+    symmetryBefore: 12,
+    symmetryAfter: 7,
+    microsaccadeBefore: 0.8,
+    microsaccadeAfter: 1.3,
+    painBefore: 5.5,
+    painAfter: 3.4,
+    romBefore: 60,
+    romAfter: 72,
+    readinessBefore: 4.8,
+    readinessAfter: 6.8,
+  },
+  fatigue: {
+    modality: 'thermal',
+    hrvBefore: 48,
+    hrvAfter: 57,
+    symmetryBefore: 16,
+    symmetryAfter: 12,
+    microsaccadeBefore: 0.6,
+    microsaccadeAfter: 0.95,
+    painBefore: 7.2,
+    painAfter: 5.9,
+    romBefore: 52,
+    romAfter: 61,
+    readinessBefore: 3.6,
+    readinessAfter: 5.1,
+  },
+  asymmetry: {
+    modality: 'resonance',
+    hrvBefore: 55,
+    hrvAfter: 63,
+    symmetryBefore: 20,
+    symmetryAfter: 8,
+    microsaccadeBefore: 0.7,
+    microsaccadeAfter: 1.15,
+    painBefore: 6.4,
+    painAfter: 4.1,
+    romBefore: 56,
+    romAfter: 70,
+    readinessBefore: 4.2,
+    readinessAfter: 6.4,
+  },
+}
+
 const toOutcomes = (state: CaptureState): SessionOutcomes => ({
   hrvDelta: state.hrvAfter - state.hrvBefore,
   symmetryGain: state.symmetryBefore - state.symmetryAfter,
@@ -57,6 +105,21 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
       ...previous,
       [key]: value,
     }))
+
+  const updateNumeric = <Key extends Exclude<keyof CaptureState, 'modality'>>(
+    key: Key,
+    raw: string,
+  ) => {
+    const value = Number(raw)
+    if (!Number.isFinite(value)) {
+      return
+    }
+    update(key, value as CaptureState[Key])
+  }
+
+  const applyPreset = (preset: keyof typeof capturePresets) => {
+    setState(capturePresets[preset])
+  }
 
   const complete = async () => {
     setSaving(true)
@@ -81,6 +144,19 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
         <p>Before/after in one screen. Save session and train the next recommendation.</p>
       </header>
 
+      <div className="preset-actions">
+        <span>Quick preset</span>
+        <button type="button" className="chip-btn" onClick={() => applyPreset('balanced')}>
+          Balanced recovery
+        </button>
+        <button type="button" className="chip-btn" onClick={() => applyPreset('fatigue')}>
+          Fatigue reset
+        </button>
+        <button type="button" className="chip-btn" onClick={() => applyPreset('asymmetry')}>
+          Asymmetry correction
+        </button>
+      </div>
+
       <div className="capture-grid">
         <label>
           Session modality
@@ -100,7 +176,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
           <input
             type="number"
             value={state.hrvBefore}
-            onChange={(event) => update('hrvBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('hrvBefore', event.target.value)}
           />
         </label>
 
@@ -109,7 +185,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
           <input
             type="number"
             value={state.hrvAfter}
-            onChange={(event) => update('hrvAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('hrvAfter', event.target.value)}
           />
         </label>
 
@@ -119,7 +195,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.symmetryBefore}
-            onChange={(event) => update('symmetryBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('symmetryBefore', event.target.value)}
           />
         </label>
 
@@ -129,7 +205,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.symmetryAfter}
-            onChange={(event) => update('symmetryAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('symmetryAfter', event.target.value)}
           />
         </label>
 
@@ -139,7 +215,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.microsaccadeBefore}
-            onChange={(event) => update('microsaccadeBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('microsaccadeBefore', event.target.value)}
           />
         </label>
 
@@ -149,7 +225,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.microsaccadeAfter}
-            onChange={(event) => update('microsaccadeAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('microsaccadeAfter', event.target.value)}
           />
         </label>
 
@@ -159,7 +235,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.painBefore}
-            onChange={(event) => update('painBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('painBefore', event.target.value)}
           />
         </label>
 
@@ -169,7 +245,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.painAfter}
-            onChange={(event) => update('painAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('painAfter', event.target.value)}
           />
         </label>
 
@@ -179,7 +255,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={1}
             value={state.romBefore}
-            onChange={(event) => update('romBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('romBefore', event.target.value)}
           />
         </label>
 
@@ -189,7 +265,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={1}
             value={state.romAfter}
-            onChange={(event) => update('romAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('romAfter', event.target.value)}
           />
         </label>
 
@@ -199,7 +275,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.readinessBefore}
-            onChange={(event) => update('readinessBefore', Number(event.target.value))}
+            onChange={(event) => updateNumeric('readinessBefore', event.target.value)}
           />
         </label>
 
@@ -209,7 +285,7 @@ export const OutcomeCapturePanel = ({ onCompleteSession }: OutcomeCapturePanelPr
             type="number"
             step={0.1}
             value={state.readinessAfter}
-            onChange={(event) => update('readinessAfter', Number(event.target.value))}
+            onChange={(event) => updateNumeric('readinessAfter', event.target.value)}
           />
         </label>
       </div>

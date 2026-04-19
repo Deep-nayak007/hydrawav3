@@ -176,6 +176,9 @@ src/
 
 ## 10. If a Click Seems Not Working
 
+- `Device Bridge mode switch`:
+  - Use **Demo mode (offline)** when backend is not running; buttons still simulate correctly.
+  - Use **Live API mode** only when Hydra endpoints and CORS are configured.
 - `Play Post-Session Voice Note`:
   - Needs browser audio output.
   - ElevenLabs requires env keys; without keys app uses browser speech synthesis fallback.

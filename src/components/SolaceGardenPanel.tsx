@@ -8,6 +8,8 @@ interface SolaceGardenPanelProps {
   onCaptureImage: () => void
   onCanvasReady: (canvas: HTMLCanvasElement) => void
   sharePreview: string | null
+  voiceBusy: boolean
+  captureDisabled: boolean
 }
 
 const speciesLabel: Record<string, string> = {
@@ -25,6 +27,8 @@ export const SolaceGardenPanel = ({
   onCaptureImage,
   onCanvasReady,
   sharePreview,
+  voiceBusy,
+  captureDisabled,
 }: SolaceGardenPanelProps) => (
   <section className="panel panel-garden">
     <header className="panel-header">
@@ -39,13 +43,15 @@ export const SolaceGardenPanel = ({
     </div>
 
     <div className="garden-actions">
-      <button type="button" className="primary-btn" onClick={() => void onPlayVoice()}>
-        Play Post-Session Voice Note
+      <button type="button" className="primary-btn" onClick={() => void onPlayVoice()} disabled={voiceBusy}>
+        {voiceBusy ? 'Playing voice note...' : 'Play Post-Session Voice Note'}
       </button>
-      <button type="button" className="secondary-btn" onClick={onCaptureImage}>
+      <button type="button" className="secondary-btn" onClick={onCaptureImage} disabled={captureDisabled}>
         Capture Share Image
       </button>
     </div>
+
+    {captureDisabled && <p className="status-line">Canvas is initializing. Capture unlocks in a moment.</p>}
 
     <article className="voice-card">
       <h3>{voiceNote.headline}</h3>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AdaptiveProtocolPanel } from './components/AdaptiveProtocolPanel'
 import { DeviceBridgePanel } from './components/DeviceBridgePanel'
 import { FeatureGuidePanel } from './components/FeatureGuidePanel'
@@ -11,13 +11,22 @@ import { recoveryScore } from './lib/scoring'
 import { buildPostSessionVoiceNote, playVoiceNote } from './lib/voice'
 import type { ProtocolParameters, SessionModality, SessionOutcomes } from './types/domain'
 
+type StatusTone = 'info' | 'success' | 'error'
+
+interface StatusBannerState {
+  message: string
+  tone: StatusTone
+}
+
 function App() {
   const { loading, sessions, addSession, resetDemoData } = useHydraSessions()
   const [draftProtocol, setDraftProtocol] = useState<ProtocolParameters | null>(null)
   const [overrideNote, setOverrideNote] = useState('')
   const [sharePreview, setSharePreview] = useState<string | null>(null)
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null)
-  const [statusMessage, setStatusMessage] = useState('')
+  const [statusBanner, setStatusBanner] = useState<StatusBannerState | null>(null)
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false)
+  const [isResettingData, setIsResettingData] = useState(false)
 
   const webGPUAvailable = useMemo(
     () => typeof navigator !== 'undefined' && 'gpu' in navigator,
@@ -38,54 +47,129 @@ function App() {
     [latestSession, recommendation, gardenSnapshot],
   )
   const activeProtocol = draftProtocol ?? recommendation.protocol
+  const recentSessions = sessions.slice(-8)
+
+  const pushStatus = (message: string, tone: StatusTone = 'info') => {
+    setStatusBanner({ message, tone })
+  }
+
+  useEffect(() => {
+    if (!statusBanner) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatusBanner((previous) => (previous?.message === statusBanner.message ? null : previous))
+    }, 6500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [statusBanner])
 
   const applyRecommendation = () => {
-    setDraftProtocol(recommendation.protocol)
-    setStatusMessage('AI recommendation copied into the editable session card.')
+    const nextProtocol = recommendation.protocol
+    const changed = JSON.stringify(activeProtocol) !== JSON.stringify(nextProtocol)
+    setDraftProtocol(nextProtocol)
+    pushStatus(
+      changed
+        ? 'AI recommendation copied into the editable session card.'
+        : 'Recommendation is already active. You can still fine-tune sliders manually.',
+      changed ? 'success' : 'info',
+    )
   }
 
   const completeSession = async (payload: {
     modality: SessionModality
     outcomes: SessionOutcomes
   }) => {
-    await addSession({
-      modality: payload.modality,
-      outcomes: payload.outcomes,
-      protocol: activeProtocol,
-      overrideNote: overrideNote.trim() || undefined,
-    })
+    try {
+      await addSession({
+        modality: payload.modality,
+        outcomes: payload.outcomes,
+        protocol: activeProtocol,
+        overrideNote: overrideNote.trim() || undefined,
+      })
 
-    setOverrideNote('')
-    setDraftProtocol(null)
-    setStatusMessage('Session saved. Garden growth and protocol model have been updated.')
+      setOverrideNote('')
+      setDraftProtocol(null)
+      pushStatus('Session saved. Garden growth and protocol model have been updated.', 'success')
+    } catch (error) {
+      pushStatus(
+        `Could not save session: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+      )
+    }
   }
 
   const playContinuityVoice = async () => {
-    setStatusMessage('Playing post-session continuity voice note...')
-    const playback = await playVoiceNote(voiceNote)
-
-    if (playback.mode === 'elevenlabs') {
-      setStatusMessage('Voice note completed with ElevenLabs.')
+    if (isPlayingVoice) {
       return
     }
 
-    if (playback.mode === 'speech') {
-      setStatusMessage('Voice note completed with browser speech synthesis fallback.')
-      return
-    }
+    setIsPlayingVoice(true)
+    pushStatus('Playing post-session continuity voice note...', 'info')
 
-    setStatusMessage(playback.reason ?? 'Voice note could not be played on this browser.')
+    try {
+      const playback = await playVoiceNote(voiceNote)
+
+      if (playback.mode === 'elevenlabs') {
+        pushStatus('Voice note completed with ElevenLabs.', 'success')
+        return
+      }
+
+      if (playback.mode === 'speech') {
+        pushStatus('Voice note completed with browser speech synthesis fallback.', 'success')
+        return
+      }
+
+      pushStatus(playback.reason ?? 'Voice note could not be played on this browser.', 'error')
+    } catch (error) {
+      pushStatus(
+        `Voice playback failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+      )
+    } finally {
+      setIsPlayingVoice(false)
+    }
   }
 
   const captureShareImage = () => {
     if (!canvasElement) {
-      setStatusMessage('Canvas is still loading. Try capture again in a second.')
+      pushStatus('Canvas is still loading. Try capture again in a second.', 'info')
       return
     }
 
-    const dataUrl = canvasElement.toDataURL('image/png')
-    setSharePreview(dataUrl)
-    setStatusMessage('Garden image captured. Preview is ready for sharing.')
+    try {
+      const dataUrl = canvasElement.toDataURL('image/png')
+      setSharePreview(dataUrl)
+      pushStatus('Garden image captured. Preview is ready for sharing.', 'success')
+    } catch (error) {
+      pushStatus(
+        `Image capture failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+      )
+    }
+  }
+
+  const handleResetDemoData = async () => {
+    if (isResettingData) {
+      return
+    }
+
+    setIsResettingData(true)
+    try {
+      await resetDemoData()
+      setDraftProtocol(null)
+      setOverrideNote('')
+      setSharePreview(null)
+      pushStatus('Demo dataset reset. Judge flow is back to seeded sessions.', 'success')
+    } catch (error) {
+      pushStatus(
+        `Could not reset demo data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+      )
+    } finally {
+      setIsResettingData(false)
+    }
   }
 
   if (loading) {
@@ -147,7 +231,7 @@ function App() {
             onOverrideNoteChange={setOverrideNote}
           />
 
-          <DeviceBridgePanel protocol={activeProtocol} onStatus={setStatusMessage} />
+          <DeviceBridgePanel protocol={activeProtocol} onStatus={pushStatus} />
 
           <OutcomeCapturePanel onCompleteSession={completeSession} />
 
@@ -158,17 +242,26 @@ function App() {
             </header>
 
             <div className="trend-chart">
-              {sessions.slice(-8).map((session) => (
-                <div key={session.id} className="trend-bar-wrap">
-                  <div
-                    className="trend-bar"
-                    style={{
-                      height: `${Math.max(16, session.outcomes.hrvDelta * 7)}px`,
-                    }}
-                  />
-                  <span>{new Date(session.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                </div>
-              ))}
+              {recentSessions.length > 0 ? (
+                recentSessions.map((session) => (
+                  <div key={session.id} className="trend-bar-wrap">
+                    <div
+                      className="trend-bar"
+                      style={{
+                        height: `${Math.max(16, session.outcomes.hrvDelta * 7)}px`,
+                      }}
+                    />
+                    <span>
+                      {new Date(session.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="chart-empty">Complete a session to populate trend bars.</p>
+              )}
             </div>
           </section>
         </div>
@@ -181,19 +274,28 @@ function App() {
             onCaptureImage={captureShareImage}
             onCanvasReady={setCanvasElement}
             sharePreview={sharePreview}
+            voiceBusy={isPlayingVoice}
+            captureDisabled={!canvasElement}
           />
 
           <section className="panel utility-panel">
             <h2>Demo controls</h2>
             <p>Reset seeded data to replay the full judge flow from session one.</p>
-            <button type="button" className="secondary-btn" onClick={() => void resetDemoData()}>
-              Reset Demo Dataset
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => void handleResetDemoData()}
+              disabled={isResettingData}
+            >
+              {isResettingData ? 'Resetting...' : 'Reset Demo Dataset'}
             </button>
           </section>
         </div>
       </section>
 
-      {statusMessage && <p className="status-banner">{statusMessage}</p>}
+      {statusBanner && (
+        <p className={`status-banner tone-${statusBanner.tone}`}>{statusBanner.message}</p>
+      )}
     </main>
   )
 }
