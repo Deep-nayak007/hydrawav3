@@ -1,192 +1,112 @@
-# HYDRA-V MVP (Feature 6 + Feature 7)
+# HYDRA-V
 
-HYDRA-V is a practitioner-first recovery intelligence layer for Hydrawav3.
+HYDRA-V is a hybrid web runtime for contactless intake, AR-guided recovery exercise, HydraWav hardware synchronization, and AI session analysis.
 
-This MVP ships two core modules:
+## Product Flow
+1. App boots and auto-starts intake camera flow.
+2. A 60-second intake scan computes heart rate, HRV, micro-saccades, symmetry, readiness, and flagged zones.
+3. Body map and thermal mapping identify focus zones and Sun/Moon pad targets.
+4. Recovery mode starts with HydraWav therapy command, cardiac gating, neural mirror priming, and neuroacoustic audio phases.
+5. AR exercise runs with translucent anatomy overlays plus a bottom-left movement preview for the current action.
+6. A 3D virtual game runs in the background and advances from real movement quality, reps, and progress.
+7. Post-session recheck runs, then REA AI analysis shows real deltas and next protocol recommendation.
 
-- **Feature 6: Solace Digital Garden+**
-- **Feature 7: Adaptive Protocol AI**
-- **HydraWav MQTT Device Bridge (from hackathon API PDF)**
+## Runtime Stack
+- Frontend (`index.html`, `app.js`, `src/features/*`): camera layers, overlays, game loop, UI flow state.
+- Node gateway (`server.js`): static host, HydraWav API proxy, ElevenLabs TTS proxy, Python analytics proxy.
+- Python analytics (`python_service/`): Aura signal processing, RuView-style local fusion, thermal optical-flow analysis.
 
-The app is fully browser-based, uses **IndexedDB** for local persistence, and does not require cloud storage for model training.
+## Camera Layer Composition
+- `virtual-game-canvas`: 3D motivation world during exercise.
+- `aura-camera-canvas`: live camera feed.
+- `thermal-overlay-canvas`: thermal/body mask overlays.
+- `neural-ghost-canvas`: mirrored neural-handshake overlay.
+- `game-overlay-canvas`: action HUD + movement preview + guidance.
 
-## 1. Brand-New Mac Setup (from zero)
+## Core Output Contracts
+- Intake metrics: `heartRateBpm`, `rrIntervalMs`, `hrvRmssdMs`, `microsaccadeHz`, `symmetryDeltaPct`, `readinessScore`, `flaggedZones`, `algorithm`, `vitalsSource`.
+- Thermal metrics: `flaggedZones`, `zoneScores`, `chainTargets`, `recommendedPads.sun`, `recommendedPads.moon`, overlay anchors.
+- Game metrics: `score`, `actionsCompleted`, `actionsTotal`, `movementMatchScore`, `motionSyncScore`, `vitalsScore`, summary averages.
+- Session deltas: HRV/symmetry/micro/readiness deltas, ROM gain estimate, adaptive expected improvement and confidence.
 
-Run these commands in Terminal, in order:
+## Prerequisites
+- Node.js 18+ (Node 20+ recommended).
+- Python 3.10+.
+- Webcam permissions.
+- Chrome/Edge recommended.
 
+## Setup
+1. Install Node dependencies.
 ```bash
-xcode-select --install
-```
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-After Homebrew installation, add it to shell:
-
-```bash
-echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-eval "$(/opt/homebrew/bin/brew shellenv)"
-```
-
-Install Node LTS:
-
-```bash
-brew install node
-```
-
-Verify:
-
-```bash
-node -v
-npm -v
-git --version
-```
-
-Optional quick check:
-
-```bash
-cd /Users/deepnayak/Desktop/Hydrawav3/hydra-v
-./scripts/doctor.sh
-```
-
-## 2. Run This Project
-
-```bash
-cd /Users/deepnayak/Desktop/Hydrawav3/hydra-v
 npm install
-npm run dev
 ```
-
-Open the local URL shown in terminal (usually `http://localhost:5173`).
-
-## 3. Optional ElevenLabs Voice (Post-Session Note)
-
-Create `.env.local` in project root:
-
+2. Setup Python environment.
 ```bash
-VITE_ELEVENLABS_API_KEY=your_key_here
-VITE_ELEVENLABS_VOICE_ID=your_voice_id_here
+cd python_service
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
+3. Create `.env` from `.env.example` and fill required keys.
 
-If env vars are missing, app falls back to browser speech synthesis.
-
-## 4. Build for Demo
-
+## Run
+1. Start Python service.
 ```bash
-npm run build
-npm run preview
+cd python_service
+.venv\Scripts\activate
+python main.py
 ```
-
-## 5. What This MVP Includes
-
-### Feature 6: Solace Digital Garden+
-
-- React Three Fiber 3D garden scene
-- Session-to-tree growth mapping with L-system grammar
-- Species mapping:
-  - Birch = photobiomodulation
-  - Bamboo = resonance
-  - Pine = thermal
-  - Oak = balanced/high performance
-- Frost visualization when residual asymmetry is elevated
-- Blossom event when recent sessions hit HRV + symmetry milestones
-- River biome unlock when symmetry delta reaches equilibrium threshold
-- Rare species unlock at personal HRV best
-- One-click garden image capture for social sharing workflow
-
-### Feature 7: Adaptive Protocol AI
-
-- Per-athlete N-of-1 modeling
-- Gaussian Process regression over protocol parameter vectors
-- Expected Improvement search for next protocol recommendation
-- Confidence map per parameter
-- Diminishing-return detection with concrete parameter-shift suggestions
-- Practitioner override note that feeds the learning loop
-- Local training/inference with IndexedDB-backed session history
-
-### HydraWav MQTT Device Bridge
-
-- Login endpoint wired: `POST /api/v1/auth/login`
-- Publish endpoint wired: `POST /api/v1/mqtt/publish`
-- Topic used: `HydraWav3Pro/config`
-- Payload sent as **stringified JSON** exactly as document requires
-- Control commands from UI:
-  - Start (`playCmd=1`)
-  - Pause (`playCmd=2`)
-  - Stop (`playCmd=3`)
-  - Resume (`playCmd=4`)
-- Start-session payload is auto-derived from current protocol recommendation/sliders
-
-## 6. Core Workflow
-
-1. Review recommendation in **Adaptive Protocol AI** panel.
-2. Tap **Apply AI Recommendation** (or manually tune sliders).
-3. In **HydraWav Device Bridge**, login and send Start/Pause/Resume/Stop.
-4. Complete session in **Outcome + Continuity Capture**.
-5. Save session to update model and grow garden.
-6. Open **Solace Garden+**, play voice note, capture share image.
-
-## 7. Wellness Guardrails (Built-In)
-
-- Messaging is positioned as recovery support, mobility, and performance support.
-- No diagnosis or treatment claims are made.
-- Recommendations are explainable in UI (rationale + confidence + warnings).
-
-## 8. Project Structure
-
-```txt
-src/
-  components/
-    AdaptiveProtocolPanel.tsx
-    DeviceBridgePanel.tsx
-    OutcomeCapturePanel.tsx
-    SolaceGardenPanel.tsx
-    garden/
-      GardenScene.tsx
-      TreeMesh.tsx
-  data/
-    seedSessions.ts
-  db/
-    hydraDb.ts
-  hooks/
-    useHydraSessions.ts
-  lib/
-    adaptiveProtocol.ts
-    gaussianProcess.ts
-    gardenGrowth.ts
-    hydrawavDeviceApi.ts
-    math.ts
-    scoring.ts
-    voice.ts
-  types/
-    domain.ts
-    hydrawav.ts
-  App.tsx
-  main.tsx
-  index.css
+2. Start Node runtime in a second terminal.
+```bash
+cd ..
+npm start
 ```
+3. Open `http://localhost:3000`.
 
-## 9. Hackathon Notes
+## Environment Variables
+- `PORT=3000`
+- `ELEVENLABS_API_KEY=...`
+- `ELEVENLABS_VOICE_ID=...`
+- `ELEVENLABS_MODEL_ID=...`
+- `HYDRAWAV_API_BASE_URL=http://54.241.236.53:8080`
+- `HYDRAWAV_USERNAME=testpractitioner`
+- `HYDRAWAV_PASSWORD=1234`
+- `PY_AURA_API_BASE_URL=http://127.0.0.1:8010`
+- `AURA_USE_PYTHON_ANALYTICS=true`
+- `THERMAL_USE_PYTHON_ANALYTICS=true`
+- `AURA_PYTHON_TIMEOUT_MS=1500`
+- `THERMAL_PYTHON_TIMEOUT_MS=9000`
+- `RUVIEW_LOCAL_FUSION_ENABLED=true`
 
-- This code is optimized for rapid demo clarity over deep medical-grade validation.
-- You can extend this by wiring Hydrawav device commands (MQTT/BLE) into the session execution step.
-- Keep judge flow tight: intake summary -> recommendation -> session complete -> garden growth -> next suggestion.
-- The source PDF appears to have a likely typo in the command table (`Pause=3`) while explicit pause request shows `playCmd=2`; implementation follows explicit request examples.
+## HTTP APIs
+- `GET /api/health`
+- `POST /api/voice/elevenlabs/tts`
+- `POST /api/device/hydrawav/login`
+- `POST /api/device/hydrawav/publish`
+- `POST /api/aura/reset`
+- `POST /api/aura/analyze`
+- `POST /api/thermal/analyze`
 
-## 10. If a Click Seems Not Working
+Python service endpoints:
+- `GET /health`
+- `POST /aura/reset`
+- `POST /aura/analyze`
+- `POST /thermal/analyze`
 
-- `Device Bridge mode switch`:
-  - Use **Demo mode (offline)** when backend is not running; buttons still simulate correctly.
-  - Use **Live API mode** only when Hydra endpoints and CORS are configured.
-- `Play Post-Session Voice Note`:
-  - Needs browser audio output.
-  - ElevenLabs requires env keys; without keys app uses browser speech synthesis fallback.
-- `Device Bridge Login`:
-  - Needs reachable backend base URL.
-  - Browser must be allowed by backend CORS policy.
-- `Start/Pause/Resume/Stop`:
-  - Requires successful login token first.
-  - Publishes to `/api/v1/mqtt/publish` and may fail if token or payload is rejected.
-- `Capture Share Image`:
-  - Works after 3D canvas finishes loading.
+## Integration Bridge
+`window.HydraVBridge` exposes runtime controls for camera, intake scan, thermal scan, neural handshake, cardiac gating, HydraWav API calls, neuro session, narration, and live snapshot retrieval.
+
+## Troubleshooting
+- Voice not playing: set `ELEVENLABS_API_KEY`, click once to prime browser audio, fallback browser speech is used if ElevenLabs fails.
+- HydraWav errors: verify API base URL, credentials, topic, MAC, and check `/api/health`.
+- Python analytics unavailable: verify service on `127.0.0.1:8010`; intake falls back to JS metrics when needed.
+
+## Notes
+- Wellness support software only, not diagnostic software.
+- HydraWav publish payload must be a JSON string.
+- Movement preview panel uses real exercise GIF demos from `src/assets/movements/demos/` (see `SOURCE.md`).
+
+## Teammates
+- Manav
+- Riya Attri
+- Deep Nayak
